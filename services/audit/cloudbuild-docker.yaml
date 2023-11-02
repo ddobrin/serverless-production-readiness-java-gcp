@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 steps:
-# restore Maven dependencies for faster builds
+  # restore Maven dependencies for faster builds
 - id: 'download-cached-maven-dependencies'
   name: gcr.io/cloud-builders/gsutil
   entrypoint: bash
@@ -34,20 +34,19 @@ steps:
     path: '/root/.m2'
   args: ["verify"]
 
-  # build service
-- id: 'build-code'
+  # build service image
+- id: 'build-project'
   name: maven:3.9-eclipse-temurin-17
   entrypoint: mvn
   volumes:
   - name: 'maven-repository'
     path: '/root/.m2'
-  args: [ "package", "-Dmaven.test.skip=true" ]
+  args: ["spring-boot:build-image", "-DskipTests"]
 
-- id: 'build-project'
-  name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '.', '-t', 'gcr.io/$PROJECT_ID/quotes-docker', '-f', 'containerize/Dockerfile-fatjar']
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'gcr.io/$PROJECT_ID/quotes-docker']
+  # store image in registry
+- id: 'store-image'
+  name: gcr.io/cloud-builders/docker
+  args: ["tag", "audit", "gcr.io/$PROJECT_ID/audit"]
 
   # store Maven dependencies
 - id: 'upload-cached-maven-dependencies'
@@ -62,4 +61,4 @@ steps:
   - |
     tar -zcf maven-dependencies.tgz /root/.m2
     gsutil cp maven-dependencies.tgz gs://${PROJECT_ID}-cache-dependencies/cache/maven-dependencies.tgz
-images: ["gcr.io/$PROJECT_ID/quotes-docker"]
+images: ["gcr.io/$PROJECT_ID/audit"]

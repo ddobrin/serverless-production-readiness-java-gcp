@@ -34,7 +34,7 @@ Java HotSpot(TM) 64-Bit Server VM Oracle GraalVM 17.0.7+8.1 (build 17.0.7+8-LTS-
 
 From a terminal window, test the app
 ```
-curl localhost:8083/start
+curl localhost:8083/hello
 
 # Output
 Hello from your local environment!

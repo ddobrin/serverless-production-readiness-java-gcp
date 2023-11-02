@@ -29,16 +29,16 @@ steps:
   volumes:
   - name: 'maven-repository'
     path: '/root/.m2'
-  args: ["verify"]
+  args: ["verify", "--projects", "audit"]
 - id: 'build-project'
   name: maven:3.9-eclipse-temurin-17
   entrypoint: bash
   args:
   - '-c'
   - |
-    bash <(curl -sL https://get.graalvm.org/jdk) graalvm-ce-java17-22.3.1
+    bash <(curl -sL https://get.graalvm.org/jdk) graalvm-ce-java17-22.3.3
     printenv
-    export JAVA_HOME="/workspace/graalvm-ce-java17-22.3.1"
+    export JAVA_HOME="/workspace/graalvm-ce-java17-22.3.3"
     gu install native-image
     mvn spring-boot:build-image -Pnative -DskipTests
   volumes:

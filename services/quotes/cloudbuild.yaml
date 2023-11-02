@@ -32,7 +32,7 @@ steps:
   volumes:
   - name: 'maven-repository'
     path: '/root/.m2'
-  args: ["verify"]
+  args: ["--projects", "quotes", "verify"]
 
   # build service image
 - id: 'build-project'
@@ -41,12 +41,16 @@ steps:
   volumes:
   - name: 'maven-repository'
     path: '/root/.m2'
-  args: ["spring-boot:build-image", "-DskipTests"]
+  args: ["--projects", "quotes", "spring-boot:build-image", "-DskipTests"]
 
   # store image in registry
-- id: 'store-image'
+- id: 'tag-image'
   name: gcr.io/cloud-builders/docker
   args: ["tag", "quotes", "gcr.io/$PROJECT_ID/quotes"]
+
+- id: 'store-image'
+  name: gcr.io/cloud-builders/docker
+  args: ["push", "gcr.io/$PROJECT_ID/quotes"]
 
   # store Maven dependencies
 - id: 'upload-cached-maven-dependencies'
@@ -60,5 +64,6 @@ steps:
   - '-c'
   - |
     tar -zcf maven-dependencies.tgz /root/.m2
+    gsutil mb gs://${PROJECT_ID}-cache-dependencies 2>/dev/null
     gsutil cp maven-dependencies.tgz gs://${PROJECT_ID}-cache-dependencies/cache/maven-dependencies.tgz
 images: ["gcr.io/$PROJECT_ID/quotes"]

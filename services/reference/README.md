@@ -7,7 +7,7 @@
 git clone https://github.com/ddobrin/serverless-production-readiness-java-gcp.git
 
 # Note: subject to change!
-cd prod/reference
+cd services/reference
 ```
 
 ### Validate that you have Java 17 and Maven installed

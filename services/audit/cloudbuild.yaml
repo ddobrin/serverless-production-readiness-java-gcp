@@ -32,7 +32,7 @@ steps:
   volumes:
   - name: 'maven-repository'
     path: '/root/.m2'
-  args: ["verify"]
+  args: ["verify", "--projects", "audit"]
 
   # build service image
 - id: 'build-project'
