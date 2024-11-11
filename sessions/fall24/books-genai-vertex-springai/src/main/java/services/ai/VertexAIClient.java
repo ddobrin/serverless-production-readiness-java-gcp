@@ -17,10 +17,12 @@ package services.ai;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.AdvisedRequest;
+import org.springframework.ai.chat.client.advisor.api.AdvisedRequest;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.RequestResponseAdvisor;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.api.AdvisedResponse;
+import org.springframework.ai.chat.client.advisor.api.CallAroundAdvisor;
+import org.springframework.ai.chat.client.advisor.api.CallAroundAdvisorChain;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -29,7 +31,6 @@ import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 
 /*
     VertexAIClient is a service class that interacts with the Vertex AI Chat Client.
@@ -59,7 +60,8 @@ public class VertexAIClient {
 
         ChatClient client = ChatClient.create(chatClient);
         ImageDetails imageData = client.prompt()
-                .advisors(new LoggingAdvisor())
+                .advisors(new LoggingAdvisor(),
+                          new GuardrailsAdvisor())
                 .messages(List.of(systemMessage, userMessage))
                 .options(VertexAiGeminiChatOptions.builder()
                         .withModel(model)
@@ -90,10 +92,14 @@ public class VertexAIClient {
 
         ChatClient client = ChatClient.create(chatClient);
         ChatResponse chatResponse = client.prompt()
-                .advisors(new LoggingAdvisor())
+                .advisors(new LoggingAdvisor(),
+                          new GuardrailsAdvisor())
                 .messages(List.of(systemMessage, userMessage))
                 .options(VertexAiGeminiChatOptions.builder()
-                        .withTemperature(0.4f)
+                        .withTemperature(0.4)
+                        .withMaxOutputTokens(8192)
+                        .withTopK(3f)
+                        .withTopP(0.5)
                         .withModel(model)
                         .withGoogleSearchRetrieval(useGoogleWebSearch)
                         .build())
@@ -119,11 +125,12 @@ public class VertexAIClient {
 
         ChatClient client = ChatClient.create(chatClient);
         ChatResponse chatResponse = client.prompt()
-                .advisors(new LoggingAdvisor())
+                .advisors(new LoggingAdvisor(),
+                          new GuardrailsAdvisor())
                 .messages(List.of(systemMessage, userMessage))
                 .functions(functionName)
                 .options(VertexAiGeminiChatOptions.builder()
-                        .withTemperature(0.4f)
+                        .withTemperature(0.4)
                         .withModel(model)
                         .build())
                 .call()
@@ -145,10 +152,11 @@ public class VertexAIClient {
         ChatClient client = ChatClient.create(chatClient);
         ChatResponse chatResponse = client.prompt()
                 .advisors(new LoggingAdvisor(),
-                          new MessageChatMemoryAdvisor(chatMemory))
+                          new MessageChatMemoryAdvisor(chatMemory),
+                          new GuardrailsAdvisor())
                 .messages(List.of(systemMessage, userMessage))
                 .options(VertexAiGeminiChatOptions.builder()
-                        .withTemperature(0.4f)
+                        .withTemperature(0.4)
                         .withModel(model)
                         .build())
                 .call()
@@ -164,27 +172,63 @@ public class VertexAIClient {
         return output;
     }
 
-    private static class LoggingAdvisor implements RequestResponseAdvisor {
+    private static class LoggingAdvisor implements CallAroundAdvisor {
         private final Logger logger = LoggerFactory.getLogger(LoggingAdvisor.class);
 
         @Override
-        public AdvisedRequest adviseRequest(AdvisedRequest request, Map<String, Object> context) {
+        public String getName(){
+            return this.getClass().getSimpleName();
+        }
+
+        @Override
+        public AdvisedResponse aroundCall(AdvisedRequest request, CallAroundAdvisorChain chain) {
             logger.info("System text: \n{}", request.systemText());
             logger.info("System params: {}", request.systemParams());
             logger.info("User text: \n{}", request.userText());
             logger.info("User params:{}", request.userParams());
             logger.info("Function names: {}", request.functionNames());
             logger.info("Messages {}", request.messages());
-
             logger.info("Options: {}", request.chatOptions().toString());
 
-            return request;
+            logger.info("BEFORE: {}", request);
+            AdvisedResponse response = chain.nextAroundCall(request);
+            logger.info("AFTER: {}", response);
+
+            return response;
         }
 
         @Override
-        public ChatResponse adviseResponse(ChatResponse response, Map<String, Object> context) {
-            logger.info("Response: {}", response);
+        public int getOrder() {
+            return 0;
+        }
+    }
+
+    private static class GuardrailsAdvisor implements CallAroundAdvisor {
+        private final Logger logger = LoggerFactory.getLogger(GuardrailsAdvisor.class);
+
+        @Override
+        public String getName(){
+            return this.getClass().getSimpleName();
+        }
+
+        @Override
+        public AdvisedResponse aroundCall(AdvisedRequest request, CallAroundAdvisorChain chain) {
+            // configure safety filters
+            logger.info("Perform prompt safety check");
+
+            // filter PII data
+            logger.info("Mask PII data from prompt");
+
+            logger.info("BEFORE: {}", request);
+            AdvisedResponse response = chain.nextAroundCall(request);
+            logger.info("AFTER: {}", response);
+
             return response;
+        }
+
+        @Override
+        public int getOrder() {
+            return 1;
         }
     }
 }

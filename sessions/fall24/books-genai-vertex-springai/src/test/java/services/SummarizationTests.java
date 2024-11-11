@@ -27,7 +27,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-@Disabled
 @SpringBootTest
 @ActiveProfiles(value = "test")
 @EnabledIfEnvironmentVariable(named = "VERTEX_AI_GEMINI_PROJECT_ID", matches = ".*")
@@ -63,7 +62,6 @@ public class SummarizationTests {
     private static final int CHUNK_SIZE = 10000;  // Number of words in each window
     private static final int OVERLAP_SIZE = 2000;
 
-    @Disabled
     @Test
     public void summarizationTest(){
         TextReader textReader = new TextReader(resource);
@@ -79,7 +77,7 @@ public class SummarizationTests {
         long start = System.currentTimeMillis();
         ChatResponse response = chatClient.call(new Prompt(List.of(userMessage, systemMessage),
             VertexAiGeminiChatOptions.builder()
-                .withTemperature(0.4f)
+                .withTemperature(0.4)
                 .build()));
 
         System.out.println(response.getResult().getOutput().getContent());
@@ -148,7 +146,7 @@ public class SummarizationTests {
 
         ChatResponse response = chatClient.call(new Prompt(List.of(userMessage, systemMessage),
                 VertexAiGeminiChatOptions.builder()
-                        .withTemperature(0.4f)
+                        .withTemperature(0.4)
                         .build()));
         System.out.println("Summarization took " + (System.currentTimeMillis() - start) + " milliseconds");
         return response.getResult().getOutput().getContent();
@@ -175,7 +173,7 @@ public class SummarizationTests {
 
         ChatResponse response = chatClient.call(new Prompt(List.of(userMessage, systemMessage),
                 VertexAiGeminiChatOptions.builder()
-                        .withTemperature(0.4f)
+                        .withTemperature(0.4)
                         .build()));
         System.out.println("Summarization took " + (System.currentTimeMillis() - start) + " milliseconds");
         String output = response.getResult().getOutput().getContent();

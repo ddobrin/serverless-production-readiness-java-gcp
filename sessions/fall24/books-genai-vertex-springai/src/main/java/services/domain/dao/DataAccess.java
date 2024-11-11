@@ -125,6 +125,7 @@ public class DataAccess {
         if (characterLimit == null || characterLimit == 0) {
             characterLimit = 2000;
         }
+        String cosine = environment.getProperty("spring.sql.cosine");
         String sql = "SELECT\n" +
                 "        b.title,\n" +
                 "        left(p.content,?) as page,\n" +
@@ -137,15 +138,21 @@ public class DataAccess {
                 "        p.book_id=b.book_id\n" +
                 "JOIN authors a on\n" +
                 "       a.author_id=b.author_id\n";
-        Object[] parameters = new Object[]{characterLimit, prompt, book, author};
+        Object[] parameters = new Object[]{characterLimit, prompt, book, author, prompt};
         List<Object> params = Arrays.stream(parameters)
                 .filter(Objects::nonNull)
                 .filter(p -> p instanceof String ? !((String) p).isEmpty() : true)
                 .collect(Collectors.toList());
         logger.info(params.toString());
-        if ( params.size()>2 ) {
+        String whereClause = "WHERE";
+        if ( params.size() > 3 ) {
             sql += createWhereClause(book, author);
+            whereClause = "AND";
         }
+
+        // Add "WHERE" if no other conditions, otherwise add "AND"
+        sql += whereClause +
+                " (p.embedding <=> embedding('text-embedding-004', ?)::vector) < " + cosine;
         sql += " ORDER BY\n" +
                 "distance ASC\n" +
                 "LIMIT 10;";
@@ -159,14 +166,14 @@ public class DataAccess {
         StringBuilder whereClause = new StringBuilder();
         whereClause.append("WHERE ");
         if (book != null) {
-            whereClause.append("b.title = ?");
+            whereClause.append("b.title = ? ");
         }
 
         if (author != null) {
-            if (whereClause.length() > 0) {
+            if (whereClause.length() > 6) {
                 whereClause.append(" AND ");
             }
-            whereClause.append("a.name = ?");
+            whereClause.append("a.name = ? ");
         }
 
         return whereClause.toString();
